@@ -1,0 +1,4 @@
+"/Users/zacharylineman/Library/Application Support/JetBrains/Toolbox/apps/CLion/ch-0/221.5080.224/CLion.app/Contents/bin/cmake/mac/bin/cmake" -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_MAKE_PROGRAM=/Users/zacharylineman/Library/Application Support/JetBrains/Toolbox/apps/CLion/ch-0/221.5080.224/CLion.app/Contents/bin/ninja/mac/ninja" -G Ninja -S /Users/zacharylineman/Developer/Biotech/ViralSpread -B /Users/zacharylineman/Developer/Biotech/ViralSpread/cmake-build-debug
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /Users/zacharylineman/Developer/Biotech/ViralSpread/cmake-build-debug
