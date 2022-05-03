@@ -50,7 +50,7 @@ int randomWeightedInt(initializer_list<double> weights,  initializer_list<int> n
 }
 
 template <typename T>
-int indexOf(T* object, vector<T*> vector) {
+int indexOf(T object, vector<T> vector) {
     for(int n = 0; n < vector.capacity(); n ++) {
         if(vector[n] == object) {
             return n;
@@ -158,7 +158,6 @@ struct Person {
 
 struct CityMile {
     int id;
-    int population;
     int xPosition;
     int yPosition;
     int neighborIndices [8];
@@ -166,17 +165,14 @@ struct CityMile {
 
     CityMile() {
         id = 0;
-        population = 0;
         xPosition = 0;
         yPosition = 0;
     }
 
-    CityMile(int id, int xPosition, int yPosition, int population, vector<Person*> people) {
+    CityMile(int id, int xPosition, int yPosition) {
         this->id = id;
-        this->population = population;
         this->xPosition = xPosition;
         this->yPosition = yPosition;
-        this->people = people;
     }
 
     int randomNeighborIndex() {
@@ -205,7 +201,7 @@ struct City {
 
     // Adapted from https://www.geeksforgeeks.org/closest-perfect-square-and-its-distance/
     // Function to find the closest perfect square
-    int getClosestPerfectSquare(int number) {
+    static int getClosestPerfectSquare(int number) {
         // Check if it is already a perfect number
         if (isPerfect(number)) {
             return number;
@@ -274,12 +270,12 @@ struct City {
 
         // Create a chunk for every needed chunk.
         for(int index = 0; index < numberOfChunks; index++) {
-            for(int x = 0; x < roundedPopulationDensity; x++) {
+            for(int pIndex = 0; pIndex < roundedPopulationDensity; pIndex++) {
                 Person tempPerson = Person(rollingPersonID, index);
                 people.push_back(tempPerson);
                 rollingPersonID ++;
             }
-            cityChunks.emplace_back(index, x, y, roundedPopulationDensity);
+            cityChunks.emplace_back(index, x, y);
 
             if (x >= arraySideLength - 1) {
                 x = 0;
@@ -450,41 +446,39 @@ struct World {
         for(City& city: cities) {
             // Loop over all the possible trip numbers
             bool hasSetTripCount = false;
-            for(int trip = 1; trip <= 2; trip++) {
+            for(int trip = 0; trip < 8; trip++) {
                 for(auto chunkIterator = begin (city.cityChunks); chunkIterator != end (city.cityChunks); ++chunkIterator) {
-                    for(auto personIterator = begin (chunkIterator->people); personIterator != end (chunkIterator->people); ++personIterator) {
-                        if(!hasSetTripCount) {
-                            int dailyTrips = numberOfDailyTrips + randomWeightedInt({5, 15, 60, 15, 5},
-                                                                                    {-4, -2, 0, 2, 4});
-                            (*personIterator)->tripsToday = dailyTrips;
-                            (*personIterator)->tripsCounter = dailyTrips;
-                        }
+                    cout << "BEGIN CHUNK (" << chunkIterator->id << "): " << chunkIterator->people.size() << endl;
+                    chunkIterator->people.clear();
+                }
 
-                        if ((*personIterator)->tripsCounter <= trip) {
-                            int travelDistance = averageTripDistanceMiles +
-                                                 randomWeightedInt({2.5, 10, 20, 30, 20, 10, 5, 2.5},
-                                                                   {-5, -3, -1, 0, 1, 3, 5, 10});
-                            for (int x = 0; x < travelDistance; x++) {
-//                                int parentIndex = (*personIterator)->parentChunkIndex;
-//                                int randomNeighborIndex = city.cityChunks[parentIndex].randomNeighborIndex();
-//                                int indexInParentChunk = indexOf((*personIterator), city.cityChunks[parentIndex].people);
+                for(auto personIterator = begin (city.people); personIterator != end (city.people); ++personIterator) {
+                    if(trip == 0) {
+                        int dailyTrips = numberOfDailyTrips + randomWeightedInt({5, 15, 60, 15, 5},
+                                                                                {-4, -2, 0, 2, 4});
+                        personIterator->tripsToday = dailyTrips;
+                        personIterator->tripsCounter = dailyTrips;
+                    }
 
-//                                (*personIterator)->parentChunkIndex = randomNeighborIndex;
-//
-//                                (*personIterator)->tripsCounter--;
-//                                city.cityChunks[randomNeighborIndex].people.emplace_back(*(*personIterator));
-//
-//                                city.cityChunks[parentIndex].people.erase(city.cityChunks[parentIndex].people.begin() + indexInParentChunk);
-                            }
+                    if (personIterator->tripsCounter < trip) {
+                        int travelDistance = averageTripDistanceMiles +
+                                             randomWeightedInt({2.5, 10, 20, 30, 20, 10, 5, 2.5},
+                                                               {-5, -3, -1, 0, 1, 3, 5, 10});
+                        for (int x = 0; x < travelDistance; x++) {
+                            int parentChunkIndex = personIterator->parentChunkIndex;
+                            int randomNeighborIndex = city.cityChunks[parentChunkIndex].randomNeighborIndex();
+                            int indexInParentChunk = indexOf((*personIterator), city.people);
+                            personIterator->parentChunkIndex = randomNeighborIndex;
+                            personIterator->tripsCounter --;
                         }
                     }
-                }
 
-                for (auto chunkIterator = begin (city.cityChunks); chunkIterator != end (city.cityChunks); ++chunkIterator) {
-                    cout << "Chunk " << chunkIterator->id << " population: " << chunkIterator->people.size() << endl;
+                    city.cityChunks[personIterator->parentChunkIndex].people.push_back(&(*personIterator));
                 }
-                hasSetTripCount = true;
-                cout << "===================" << endl;
+                for(auto chunkIterator = begin (city.cityChunks); chunkIterator != end (city.cityChunks); ++chunkIterator) {
+                    cout << "END CHUNK (" << chunkIterator->id << "): " << chunkIterator->people.size() << endl;
+                }
+                cout << "=========" << endl;
             }
         }
     }
