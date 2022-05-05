@@ -5,6 +5,8 @@
 #include <map>
 #include <random>
 #include <cmath>
+#include<algorithm>
+#include <execution>
 
 /*
  An Implementation of a variation of the SIERS model for infectious disease.
@@ -445,40 +447,43 @@ struct World {
     void simulate() {
         for(City& city: cities) {
             // Loop over all the possible trip numbers
-            bool hasSetTripCount = false;
-            for(int trip = 0; trip < 8; trip++) {
+            int tripCount = 9;
+            for(int trip = 0; trip < tripCount; trip++) {
+                // Simulate disease spread in parallel threads.
+                #pragma omp parallel for
                 for(auto chunkIterator = begin (city.cityChunks); chunkIterator != end (city.cityChunks); ++chunkIterator) {
-                    cout << "BEGIN CHUNK (" << chunkIterator->id << "): " << chunkIterator->people.size() << endl;
+
+
+                    // Clear people vector to allow for movement to happen
                     chunkIterator->people.clear();
                 }
 
-                for(auto personIterator = begin (city.people); personIterator != end (city.people); ++personIterator) {
-                    if(trip == 0) {
-                        int dailyTrips = numberOfDailyTrips + randomWeightedInt({5, 15, 60, 15, 5},
-                                                                                {-4, -2, 0, 2, 4});
-                        personIterator->tripsToday = dailyTrips;
-                        personIterator->tripsCounter = dailyTrips;
-                    }
-
-                    if (personIterator->tripsCounter < trip) {
-                        int travelDistance = averageTripDistanceMiles +
-                                             randomWeightedInt({2.5, 10, 20, 30, 20, 10, 5, 2.5},
-                                                               {-5, -3, -1, 0, 1, 3, 5, 10});
-                        for (int x = 0; x < travelDistance; x++) {
-                            int parentChunkIndex = personIterator->parentChunkIndex;
-                            int randomNeighborIndex = city.cityChunks[parentChunkIndex].randomNeighborIndex();
-                            int indexInParentChunk = indexOf((*personIterator), city.people);
-                            personIterator->parentChunkIndex = randomNeighborIndex;
-                            personIterator->tripsCounter --;
+                // Move person to a new chunk
+                if (trip != tripCount - 1) {
+                    for(auto personIterator = begin (city.people); personIterator != end (city.people); ++personIterator) {
+                        if(trip == 0) {
+                            int dailyTrips = numberOfDailyTrips + randomWeightedInt({5, 15, 60, 15, 5},
+                                                                                    {-4, -2, 0, 2, 4});
+                            personIterator->tripsToday = dailyTrips;
+                            personIterator->tripsCounter = dailyTrips;
                         }
-                    }
 
-                    city.cityChunks[personIterator->parentChunkIndex].people.push_back(&(*personIterator));
+                        if (personIterator->tripsCounter < trip) {
+                            int travelDistance = averageTripDistanceMiles +
+                                                 randomWeightedInt({2.5, 10, 20, 30, 20, 10, 5, 2.5},
+                                                                   {-5, -3, -1, 0, 1, 3, 5, 10});
+                            for (int x = 0; x < travelDistance; x++) {
+                                int parentChunkIndex = personIterator->parentChunkIndex;
+                                int randomNeighborIndex = city.cityChunks[parentChunkIndex].randomNeighborIndex();
+                                int indexInParentChunk = indexOf((*personIterator), city.people);
+                                personIterator->parentChunkIndex = randomNeighborIndex;
+                                personIterator->tripsCounter --;
+                            }
+                        }
+
+                        city.cityChunks[personIterator->parentChunkIndex].people.push_back(&(*personIterator));
+                    }
                 }
-                for(auto chunkIterator = begin (city.cityChunks); chunkIterator != end (city.cityChunks); ++chunkIterator) {
-                    cout << "END CHUNK (" << chunkIterator->id << "): " << chunkIterator->people.size() << endl;
-                }
-                cout << "=========" << endl;
             }
         }
     }

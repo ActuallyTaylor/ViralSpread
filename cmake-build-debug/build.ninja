@@ -51,7 +51,7 @@ build cmake_object_order_depends_target_ViralSpread: phony || CMakeFiles/ViralSp
 
 build CMakeFiles/ViralSpread.dir/main.cpp.o: CXX_COMPILER__ViralSpread_Debug /Users/zacharylineman/Developer/Biotech/ViralSpread/main.cpp || cmake_object_order_depends_target_ViralSpread
   DEP_FILE = CMakeFiles/ViralSpread.dir/main.cpp.o.d
-  FLAGS = -g -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk -std=gnu++14
+  FLAGS = -g -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk -std=c++17
   OBJECT_DIR = CMakeFiles/ViralSpread.dir
   OBJECT_FILE_DIR = CMakeFiles/ViralSpread.dir
 
