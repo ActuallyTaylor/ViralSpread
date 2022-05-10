@@ -21,7 +21,7 @@ int rollingVirusID { 0 };
  * World Constants
  */
 // The number of daily social interactions. Based on resarch from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6113687/
-int numberOfDailySocialInteractions = 12;
+int numberOfInteractionsPerTrip = 3;
 // The average number of times somebody travels. Data calculated on findings. https://www.bts.gov/archive/publications/highlights_of_the_2001_national_household_travel_survey/section_02
 // & https://www.researchgate.net/publication/279853330_Extended_Range_Electric_Vehicle_Driving_and_Charging_Behavior_Observed_Early_in_the_EV_Project
 // Trips are defined as moving from one address to another. This means, they usually come in multiples of 2.
@@ -61,6 +61,20 @@ int indexOf(T object, vector<T> vector) {
     return -1;
 }
 
+// https://stackoverflow.com/a/9345144/14886210
+template<class BidiIter>
+BidiIter random_unique(BidiIter begin, BidiIter end, size_t num_random) {
+    size_t left = distance(begin, end);
+    while (num_random--) {
+        BidiIter r = begin;
+        advance(r, rand()%left);
+        swap(*begin, *r);
+        ++begin;
+        --left;
+    }
+    return begin;
+}
+
 enum VirusType {
     Lysogenic, // Long-lasting, can stay dormant for a while
     Lytic // Short, usually takes effect right away
@@ -82,17 +96,6 @@ enum DiseaseStage {
     Infectious, // Able to infect others
     Recovered, // Immune to the disease
     Immune // A temporary immunity, comes from birth, immunity decreases after birth
-};
-
-enum Direction {
-    North,
-    NorthEast,
-    East,
-    SouthEast,
-    South,
-    SouthWest,
-    West,
-    NorthWest,
 };
 
 struct Virus {
@@ -123,6 +126,7 @@ struct Person {
 
     int tripsToday { 0 };
     int tripsCounter { 0 };
+    optional<Virus> infectiousVirus;
 
     map<int, float> strainResistance { }; // Virus ID | Resistance percent 0-1
 
@@ -153,8 +157,12 @@ struct Person {
         return id == rhs.id;
     }
 
-    bool infect(Virus virus) {
-        return chanceOfInfection() <= virus.infectionRate;
+    bool infect(Virus virus, bool override = false) {
+        bool canInfect = chanceOfInfection() <= virus.infectionRate;
+        if (canInfect || override) {
+            infectiousVirus = virus;
+        }
+        return canInfect;
     }
 };
 
@@ -441,8 +449,13 @@ struct City {
 };
 
 struct World {
+//    vector<City> cities { };
     City cities [1];
     vector<Virus> viruses { };
+
+    void infect(City& city, Virus& virus) {
+        city.people[randomInt(0, city.people.size())].infect(virus, true);
+    }
 
     void simulate() {
         for(City& city: cities) {
@@ -452,7 +465,30 @@ struct World {
                 // Simulate disease spread in parallel threads.
                 #pragma omp parallel for
                 for(auto chunkIterator = begin (city.cityChunks); chunkIterator != end (city.cityChunks); ++chunkIterator) {
+                    for(auto personIterator = begin (chunkIterator->people); personIterator != end (chunkIterator->people); ++personIterator) {
+                        int numberOfInteractions  =  numberOfInteractionsPerTrip * (*personIterator)->tripsToday;
+                        if (numberOfInteractions > chunkIterator->people.size()) {
+                            numberOfInteractions = chunkIterator->people.size();
+                        }
 
+                        vector<Person*> interactions = chunkIterator->people;
+                        random_unique(interactions.begin(), interactions.end(), numberOfInteractions);
+
+                        for(int n = 0; n < numberOfInteractions; n++) {
+                            Person* possibleInfector = interactions[n];
+                            // If we are looking at ourselves, skip.
+                            if (possibleInfector->id == (*personIterator)->id) {
+                                continue;
+                            }
+                            // Check to see if the other person is infectious.
+                            if(possibleInfector->stageOfInfection == DiseaseStage::Infectious) {
+                                if(possibleInfector->infectiousVirus.has_value()) {
+                                    (*personIterator)->infect(possibleInfector->infectiousVirus.value());
+                                    cout << "Attempt to infect" << endl;
+                                }
+                            }
+                        }
+                    }
 
                     // Clear people vector to allow for movement to happen
                     chunkIterator->people.clear();
@@ -494,9 +530,10 @@ int main() {
     World Earth = World();
 
     // Read in cities from data (Currently Just One City)
-    City philidelphia = City("Philidelphia", 1000, 10, 10);
-    Earth.cities[0] = philidelphia;
+    Earth.cities[0] = City("Philadelphia", 1000, 10, 10);
     Earth.viruses.emplace_back(Virus("Argo 1", {Touch, Saliva, Coughing, Sneezing, SexualContact, Contamination, Insects}));
+    Earth.infect(Earth.cities[0], Earth.viruses[0]);
+
     Earth.simulate();
 
     return 0;
