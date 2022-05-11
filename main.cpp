@@ -115,7 +115,7 @@ struct Virus {
     double infectionRate { 0.025 }; // A percentage out of 100
     int latencyPeriod { 3 }; // The period at which it takes to cross from infected -> infectious
     int infectionPeriod { 14 }; // The length of time that a person is infected for
-    int recoveryPeriod { 30 }; // The length of the recovery period
+    int recoveryPeriod { 4 }; // The length of the recovery period
 
     Virus(string name, vector<InfectionMethod> infectionMethods) {
         this->name = std::move(name);
@@ -155,6 +155,7 @@ struct Person {
         return id == rhs.id;
     }
 
+    // Advances the infection through the stages fo the SIERS model
     void advanceInfection() {
         if (infectiousVirus.has_value()) {
             if(stageOfInfection == Infected) {
@@ -171,12 +172,14 @@ struct Person {
                 if(infectiousVirus.value().recoveryPeriod < stageCounter) {
                     stageOfInfection = Susceptible;
                     stageCounter = 0;
+                    infectiousVirus.reset();
                 }
             }
             stageCounter ++;
         }
     }
 
+    // Calcualtes the chance of infection. Based on health condition and rate of transfer of the virus. Along with the type of interaction.
     double chanceOfInfection() { // Need to actually implement, 0 - 1.0
         double chanceToInfect = currentHealthCondition / 20;
         return chanceToInfect;
@@ -205,6 +208,7 @@ struct CityMile {
     int yPosition;
     int neighborIndices [8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
     vector<Person*> people { };
+    vector<int> possibleIndices;
 
     CityMile() {
         id = 0;
@@ -218,15 +222,16 @@ struct CityMile {
         this->yPosition = yPosition;
     }
 
-    int randomNeighborIndex() {
-        vector<int> possibleIndices;
-
+    void setPossibleIndicies() {
         for(int x = 0; x < 8; x++) {
             if (neighborIndices[x] != -1) {
                 possibleIndices.push_back(x);
             }
         }
+    }
 
+    // Picks a random index in the list of valid neighbors.
+    int randomNeighborIndex() {
         if(!possibleIndices.empty()) {
             int random = randomInt(0, possibleIndices.size() - 1);
             return possibleIndices[random];
@@ -325,74 +330,72 @@ struct City {
             // Check to see if we are on the edge of the square
             if(x == 0) { // Left Edge
                 if(index - arraySideLength < 0) {
-                    cout << "Chunk Index: " << index << " Top Left Edge" << endl;
-                    //setIndicie(int cityIndex, int arrayIndex, int chunkIndex, int arraySize)
-                    setIndicie(index, 4, index + 1, arraySize);
-                    setIndicie(index, 6, index + arraySideLength, arraySize);
-                    setIndicie(index, 7, (index + arraySideLength) + 1, arraySize);
+//                    cout << "Chunk Index: " << index << " Top Left Edge" << endl;
+                    setIndex(index, 4, index + 1, arraySize);
+                    setIndex(index, 6, index + arraySideLength, arraySize);
+                    setIndex(index, 7, (index + arraySideLength) + 1, arraySize);
                 } else if (index + arraySideLength > numberOfChunks - 1) {
-                    cout << "Chunk Index: " << index << " Bottom Left Edge" << endl;
-                    setIndicie(index, 1, index - arraySideLength, arraySize);
-                    setIndicie(index, 2, (index - arraySideLength) + 1, arraySize);
-                    setIndicie(index, 4, index + 1, arraySize);
+//                    cout << "Chunk Index: " << index << " Bottom Left Edge" << endl;
+                    setIndex(index, 1, index - arraySideLength, arraySize);
+                    setIndex(index, 2, (index - arraySideLength) + 1, arraySize);
+                    setIndex(index, 4, index + 1, arraySize);
                 } else {
-                    cout << "Chunk Index: " << index << " Left Edge" << endl;
-                    setIndicie(index, 1, index - arraySideLength, arraySize);
-                    setIndicie(index, 2, (index - arraySideLength) + 1, arraySize);
-                    setIndicie(index, 4, index + 1, arraySize);
-                    setIndicie(index, 6, index + arraySideLength, arraySize);
-                    setIndicie(index, 7, (index + arraySideLength) + 1, arraySize);
+//                    cout << "Chunk Index: " << index << " Left Edge" << endl;
+                    setIndex(index, 1, index - arraySideLength, arraySize);
+                    setIndex(index, 2, (index - arraySideLength) + 1, arraySize);
+                    setIndex(index, 4, index + 1, arraySize);
+                    setIndex(index, 6, index + arraySideLength, arraySize);
+                    setIndex(index, 7, (index + arraySideLength) + 1, arraySize);
                 }
             } else if (x == arraySideLength - 1) { // Right Edge
                 if(index - arraySideLength < 0) {
-                    cout << "Chunk Index: " << index << " Top Right Edge" << endl;
-                    setIndicie(index, 3, index - 1, arraySize);
-                    setIndicie(index, 5, (index + arraySideLength) - 1, arraySize);
-                    setIndicie(index, 6, index + arraySideLength, arraySize);
+//                    cout << "Chunk Index: " << index << " Top Right Edge" << endl;
+                    setIndex(index, 3, index - 1, arraySize);
+                    setIndex(index, 5, (index + arraySideLength) - 1, arraySize);
+                    setIndex(index, 6, index + arraySideLength, arraySize);
                 } else if (index + arraySideLength > arraySize) {
-                    cout << "Chunk Index: " << index << " Bottom Right Edge" << endl;
-                    setIndicie(index, 0, (index - arraySideLength) - 1, arraySize);
-                    setIndicie(index, 1, index - arraySideLength, arraySize);
-                    setIndicie(index, 3, index - 1, arraySize);
+//                    cout << "Chunk Index: " << index << " Bottom Right Edge" << endl;
+                    setIndex(index, 0, (index - arraySideLength) - 1, arraySize);
+                    setIndex(index, 1, index - arraySideLength, arraySize);
+                    setIndex(index, 3, index - 1, arraySize);
                 } else {
-                    cout << "Chunk Index: " << index << " Right Edge" << endl;
-                    setIndicie(index, 0, (index - arraySideLength) - 1, arraySize);
-                    setIndicie(index, 1, index - arraySideLength, arraySize);
-                    setIndicie(index, 3, index - 1, arraySize);
-                    setIndicie(index, 5, (index + arraySideLength) - 1, arraySize);
-                    setIndicie(index, 6, index + arraySideLength, arraySize);
+//                    cout << "Chunk Index: " << index << " Right Edge" << endl;
+                    setIndex(index, 0, (index - arraySideLength) - 1, arraySize);
+                    setIndex(index, 1, index - arraySideLength, arraySize);
+                    setIndex(index, 3, index - 1, arraySize);
+                    setIndex(index, 5, (index + arraySideLength) - 1, arraySize);
+                    setIndex(index, 6, index + arraySideLength, arraySize);
                 }
             } else { // No Edge
                 if(index - arraySideLength < 0) {
-                    cout << "Chunk Index: " << index << " Top Edge" << endl;
-                    setIndicie(index, 3, index - 1, arraySize);
-                    setIndicie(index, 4, index + 1, arraySize);
-                    setIndicie(index, 5, (index + arraySideLength) - 1, arraySize);
-                    setIndicie(index, 6, index + arraySideLength, arraySize);
-                    setIndicie(index, 7, (index + arraySideLength) + 1, arraySize);
+//                    cout << "Chunk Index: " << index << " Top Edge" << endl;
+                    setIndex(index, 3, index - 1, arraySize);
+                    setIndex(index, 4, index + 1, arraySize);
+                    setIndex(index, 5, (index + arraySideLength) - 1, arraySize);
+                    setIndex(index, 6, index + arraySideLength, arraySize);
+                    setIndex(index, 7, (index + arraySideLength) + 1, arraySize);
                 } else if (index + arraySideLength > arraySize) {
-                    cout << "Chunk Index: " << index << " Bottom Edge" << endl;
-                    setIndicie(index, 0, (index - arraySideLength) - 1, arraySize);
-                    setIndicie(index, 1, index - arraySideLength, arraySize);
-                    setIndicie(index, 2, (index - arraySideLength) + 1, arraySize);
-                    setIndicie(index, 3, index - 1, arraySize);
-                    setIndicie(index, 4, index + 1, arraySize);
+//                    cout << "Chunk Index: " << index << " Bottom Edge" << endl;
+                    setIndex(index, 0, (index - arraySideLength) - 1, arraySize);
+                    setIndex(index, 1, index - arraySideLength, arraySize);
+                    setIndex(index, 2, (index - arraySideLength) + 1, arraySize);
+                    setIndex(index, 3, index - 1, arraySize);
+                    setIndex(index, 4, index + 1, arraySize);
                 } else {
-                    cout << "Chunk Index: " << index << " No Edge" << endl;
-                    setIndicie(index, 0, (index - arraySideLength) - 1, arraySize);
-                    setIndicie(index, 1, index - arraySideLength, arraySize);
-                    setIndicie(index, 2, (index - arraySideLength) + 1, arraySize);
-                    setIndicie(index, 3, index - 1, arraySize);
-                    setIndicie(index, 4, index + 1, arraySize);
-                    setIndicie(index, 5, (index + arraySideLength) - 1, arraySize);
-                    setIndicie(index, 6, index + arraySideLength, arraySize);
-                    setIndicie(index, 7, (index + arraySideLength) + 1, arraySize);
+//                    cout << "Chunk Index: " << index << " No Edge" << endl;
+                    setIndex(index, 0, (index - arraySideLength) - 1, arraySize);
+                    setIndex(index, 1, index - arraySideLength, arraySize);
+                    setIndex(index, 2, (index - arraySideLength) + 1, arraySize);
+                    setIndex(index, 3, index - 1, arraySize);
+                    setIndex(index, 4, index + 1, arraySize);
+                    setIndex(index, 5, (index + arraySideLength) - 1, arraySize);
+                    setIndex(index, 6, index + arraySideLength, arraySize);
+                    setIndex(index, 7, (index + arraySideLength) + 1, arraySize);
                 }
             }
 
-            for(int neighborIndice : cityChunks[index].neighborIndices) {
-                cout << neighborIndice << endl;
-            }
+            // Register all the possible indices for the city
+            cityChunks[index].setPossibleIndicies();
 
             if (x >= arraySideLength - 1) {
 //                cout << index << endl;
@@ -405,7 +408,7 @@ struct City {
         }
     }
 
-    void setIndicie(int cityIndex, int arrayIndex, int chunkIndex, int arraySize) {
+    void setIndex(int cityIndex, int arrayIndex, int chunkIndex, int arraySize) {
         if(chunkIndex < arraySize && chunkIndex >= 0) {
             cityChunks[cityIndex].neighborIndices[arrayIndex] = chunkIndex;
         }
@@ -526,7 +529,7 @@ int main() {
     World Earth = World();
 
     // Read in cities from data (Currently Just One City)
-    Earth.cities[0] = City("Philadelphia", 1100, 11, 11);
+    Earth.cities[0] = City("Philadelphia", 1000, 10, 10);
     Earth.viruses.emplace_back(Virus("Argo 1", {Touch, Saliva, Coughing, Sneezing, SexualContact, Contamination, Insects}));
     Earth.infect(Earth.cities[0], Earth.viruses[0]);
 
@@ -536,7 +539,7 @@ int main() {
     dataCSV << "Date,City,City Population,Chunk Number,Chunk Population,Susceptible,Infected,Infectious,Recovered,Immune\n";
     dataCSV.close();
 
-    int daysToSimulate { 1 };
+    int daysToSimulate { 50 };
     for(int x = 0; x < daysToSimulate; x++) {
         Earth.simulate(x);
         cout << "Finished day: " << x << endl;
@@ -544,40 +547,3 @@ int main() {
 
     return 0;
 };
-
-/* Check to see if weighted numbers are working
-    double numb0 { 0 };
-    double numb1 { 0 };
-    double numb2 { 0 };
-    double numb3 { 0 };
-    double numb4 { 0 };
-
-    int count = 1000;
-    for(int x = 0; x < count; x++) {
-        int condition = randomWeightedInt({15, 30, 30, 15, 10}, {0, 1, 2, 3, 4});
-        if (condition == 0) {
-            numb0 ++;
-        } else if (condition == 1) {
-            numb1 ++;
-        } else if (condition == 2) {
-            numb2 ++;
-        } else if (condition == 3) {
-            numb3 ++;
-        } else if (condition == 4) {
-            numb4 ++;
-        }
-    }
-
-    cout << "0: " << numb0 << " " << ((numb0 / double(count)) * 100) << "%" << endl;
-    cout << "1: " << numb1 << " " << ((numb1 / double(count)) * 100) << "%" << endl;
-    cout << "2: " << numb2 << " " << ((numb2 / double(count)) * 100) << "%" << endl;
-    cout << "3: " << numb3 << " " << ((numb3 / double(count)) * 100) << "%" << endl;
-    cout << "4: " << numb4 << " " << ((numb4 / double(count)) * 100) << "%" << endl;
-
-    OUTPUT:
-    0: 145 14.5%
-    1: 316 31.6%
-    2: 302 30.2%
-    3: 128 12.8%
-    4: 109 10.9%
- */

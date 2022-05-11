@@ -1,0 +1,35 @@
+// Check if random weighted ints are working correctly.
+    double numb0 { 0 };
+    double numb1 { 0 };
+    double numb2 { 0 };
+    double numb3 { 0 };
+    double numb4 { 0 };
+
+    int count = 1000;
+    for(int x = 0; x < count; x++) {
+        int condition = randomWeightedInt({15, 30, 30, 15, 10}, {0, 1, 2, 3, 4});
+        if (condition == 0) {
+            numb0 ++;
+        } else if (condition == 1) {
+            numb1 ++;
+        } else if (condition == 2) {
+            numb2 ++;
+        } else if (condition == 3) {
+            numb3 ++;
+        } else if (condition == 4) {
+            numb4 ++;
+        }
+    }
+
+    cout << "0: " << numb0 << " " << ((numb0 / double(count)) * 100) << "%" << endl;
+    cout << "1: " << numb1 << " " << ((numb1 / double(count)) * 100) << "%" << endl;
+    cout << "2: " << numb2 << " " << ((numb2 / double(count)) * 100) << "%" << endl;
+    cout << "3: " << numb3 << " " << ((numb3 / double(count)) * 100) << "%" << endl;
+    cout << "4: " << numb4 << " " << ((numb4 / double(count)) * 100) << "%" << endl;
+
+    OUTPUT:
+    0: 145 14.5%
+    1: 316 31.6%
+    2: 302 30.2%
+    3: 128 12.8%
+    4: 109 10.9%
