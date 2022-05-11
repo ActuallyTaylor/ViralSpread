@@ -28,13 +28,14 @@ int numberOfInteractionsPerTrip = 3;
 // Trips are defined as moving from one address to another. This means, they usually come in multiples of 2.
 int numberOfDailyTrips = 4;
 int averageTripDistanceMiles = 8;
+double roundTripChance = 0.6;
 
 // https://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 // These functions will randomly select a random numbers.
-double randomdouble() {
+double randomDouble(double min, double max) {
     std::random_device rd;
     std::mt19937 mt(rd());
-    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    std::uniform_real_distribution<double> dist(min, max);
     return dist(mt);
 }
 
@@ -133,6 +134,12 @@ struct Person {
     int x { 0 };
     int y { 0 };
     int parentChunkIndex;
+
+    // Dealing with moving chunks
+    int tripStartChunkIndex { 0 };
+    int tripLength { 0 };
+    int roundTripCounter { 0 };
+    bool isOnRoundTrip { false };
 
     int tripsToday { 0 };
     int tripsCounter { 0 };
@@ -466,6 +473,7 @@ struct World {
                                 }
                             }
                         }
+
                         DiseaseStage stage = (*personIterator)->stageOfInfection;
                         if(stage == Susceptible) {
                             numbSusceptible ++;
@@ -500,15 +508,44 @@ struct World {
                         }
 
                         if (personIterator->tripsCounter < trip) {
-                            int travelDistance = averageTripDistanceMiles +
-                                                 randomWeightedInt({2.5, 10, 20, 30, 20, 10, 5, 2.5},
-                                                                   {-5, -3, -1, 0, 1, 3, 5, 10});
-                            for (int x = 0; x < travelDistance; x++) {
-                                int parentChunkIndex = personIterator->parentChunkIndex;
-                                int randomNeighborIndex = city.cityChunks[parentChunkIndex].randomNeighborIndex();
-                                int indexInParentChunk = indexOf((*personIterator), city.people);
-                                personIterator->parentChunkIndex = randomNeighborIndex;
-                                personIterator->tripsCounter --;
+                            if (!personIterator->isOnRoundTrip) { // We are not on a return trip so perform a move normally
+                                if(randomDouble(0, 1) <= roundTripChance) {
+                                    personIterator->isOnRoundTrip = true;
+                                    personIterator->roundTripCounter = 0;
+                                    personIterator->tripLength = randomWeightedInt({0.5, 0.3, 0.1},{2, 4, 6}); // Pick the number length of the trip based on trip cycles.
+                                    personIterator->tripStartChunkIndex = personIterator->parentChunkIndex;
+                                }
+
+                                int travelDistance = averageTripDistanceMiles +
+                                                     randomWeightedInt({2.5, 10, 20, 30, 20, 10, 5, 2.5},
+                                                                       {-5, -3, -1, 0, 1, 3, 5, 10});
+                                for (int x = 0; x < travelDistance; x++) {
+                                    int parentChunkIndex = personIterator->parentChunkIndex;
+                                    int randomNeighborIndex = city.cityChunks[parentChunkIndex].randomNeighborIndex();
+                                    personIterator->parentChunkIndex = randomNeighborIndex;
+                                    personIterator->tripsCounter --;
+                                }
+                                personIterator->roundTripCounter ++;
+                            } else { // We are on a round trip
+                                if(personIterator->roundTripCounter >= personIterator->tripLength - 1) { // We need to be home on our next trip
+                                    personIterator->parentChunkIndex = personIterator->tripStartChunkIndex;
+                                    personIterator->tripStartChunkIndex = 0;
+                                    personIterator->tripLength = 0;
+                                    personIterator->isOnRoundTrip = false;
+
+                                    personIterator->tripsCounter --;
+                                } else { // We can keep moving
+                                    int travelDistance = averageTripDistanceMiles +
+                                                         randomWeightedInt({2.5, 10, 20, 30, 20, 10, 5, 2.5},
+                                                                           {-5, -3, -1, 0, 1, 3, 5, 10});
+                                    for (int x = 0; x < travelDistance; x++) {
+                                        int parentChunkIndex = personIterator->parentChunkIndex;
+                                        int randomNeighborIndex = city.cityChunks[parentChunkIndex].randomNeighborIndex();
+                                        personIterator->parentChunkIndex = randomNeighborIndex;
+                                        personIterator->tripsCounter --;
+                                    }
+                                    personIterator->roundTripCounter ++;
+                                }
                             }
                         }
 
@@ -539,7 +576,7 @@ int main() {
     dataCSV << "Date,City,City Population,Chunk Number,Chunk Population,Susceptible,Infected,Infectious,Recovered,Immune\n";
     dataCSV.close();
 
-    int daysToSimulate { 50 };
+    int daysToSimulate { 365 };
     for(int x = 0; x < daysToSimulate; x++) {
         Earth.simulate(x);
         cout << "Finished day: " << x << endl;
