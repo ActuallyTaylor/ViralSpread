@@ -1,0 +1,12 @@
+Date,City,City Population,Chunk Number,Chunk Population,Susceptible,Infected,Infectious,Recovered,Immune
+0,Philadelphia,121,0,7,7,0,0,0,0
+0,Philadelphia,121,1,14,14,0,0,0,0
+0,Philadelphia,121,2,13,13,0,0,0,0
+0,Philadelphia,121,3,10,10,0,0,0,0
+0,Philadelphia,121,4,19,19,0,0,0,0
+0,Philadelphia,121,5,15,15,0,0,0,0
+0,Philadelphia,121,6,32,32,0,0,0,0
+0,Philadelphia,121,7,10,9,1,0,0,0
+0,Philadelphia,121,8,0,0,0,0,0,0
+0,Philadelphia,121,9,0,0,0,0,0,0
+0,Philadelphia,121,10,1,1,0,0,0,0
