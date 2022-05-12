@@ -6,8 +6,9 @@
 #include <map>
 #include <random>
 #include <cmath>
-#include<algorithm>
+#include <algorithm>
 #include <execution>
+#include <optional>
 
 /*
  An Implementation of a variation of the SIERS model for infectious disease.
@@ -39,6 +40,7 @@ const double healthLevelFive = 1.0;
 const double latentHealthDecrease = -0.005;
 const double infectiousHealthDecrease = -0.05;
 const double recoveringHealthIncrease = 0.045;
+const double startingInfectionPercentage = 0.1;
 
 // https://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 // These functions will randomly select a random numbers.
@@ -506,6 +508,8 @@ struct City {
                 x ++;
             }
         }
+
+       this->population = people.size();
     }
 
     void setIndex(int cityIndex, int arrayIndex, int chunkIndex, int arraySize) {
@@ -521,8 +525,12 @@ struct World {
     vector<Virus> viruses { };
 
     void infect(City& city, Virus& virus) {
-        int randIndex = randomInt(0, city.people.size());
-        city.people[randIndex].infect(virus, true);
+        double infectCount = city.people.size() * startingInfectionPercentage;
+        cout << "Infecting: " << infectCount << " people" << endl;
+        for(int x = 0; x < infectCount; x++) {
+            int randIndex = randomInt(0, city.people.size());
+            city.people[randIndex].infect(virus, true);
+        }
     }
 
     void simulate(int dayNumb) {
@@ -677,7 +685,7 @@ int main() {
     World Earth = World();
 
     // Read in cities from data (Currently Just One City)
-    Earth.cities[0] = City("Philadelphia", 0, 11807, 142);
+    Earth.cities[0] = City("Philadelphia", 0, 5000, 100);
     Earth.viruses.emplace_back(Virus("Argo 1", {Touch, Saliva, Coughing, Sneezing, SexualContact, Contamination, Insects}));
     Earth.infect(Earth.cities[0], Earth.viruses[0]);
 
