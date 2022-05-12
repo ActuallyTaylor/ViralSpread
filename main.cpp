@@ -324,7 +324,7 @@ struct CityMile {
     void setPossibleIndicies() {
         for(int x = 0; x < 8; x++) {
             if (neighborIndices[x] != -1) {
-                possibleIndices.push_back(x);
+                possibleIndices.push_back(neighborIndices[x]);
             }
         }
     }
@@ -402,9 +402,8 @@ struct City {
         this->population = 0;
     }
 
-    City(string name, int population, double populationDensity, double squareMileage) {
+    City(string name, double populationDensity, double squareMileage) {
         this->name = std::move(name);
-        this->population = population;
         this->populationDensity = populationDensity;
         this->squareMileage = squareMileage;
 
@@ -524,7 +523,7 @@ struct World {
     City cities [1];
     vector<Virus> viruses { };
 
-    void infect(City& city, Virus& virus) {
+    static void infect(City& city, Virus& virus) {
         double infectCount = city.people.size() * startingInfectionPercentage;
         cout << "Infecting: " << infectCount << " people" << endl;
         for(int x = 0; x < infectCount; x++) {
@@ -685,7 +684,7 @@ int main() {
     World Earth = World();
 
     // Read in cities from data (Currently Just One City)
-    Earth.cities[0] = City("Philadelphia", 0, 5000, 100);
+    Earth.cities[0] = City("Philadelphia",  100, 100);
     Earth.viruses.emplace_back(Virus("Argo 1", {Touch, Saliva, Coughing, Sneezing, SexualContact, Contamination, Insects}));
     Earth.infect(Earth.cities[0], Earth.viruses[0]);
 
@@ -695,7 +694,7 @@ int main() {
     dataCSV << "Date,City,City Population,Chunk Number,Chunk Population,Susceptible,Latent,Infectious,Recovered,Immune,Average Health\n";
     dataCSV.close();
 
-    int daysToSimulate { 100 };
+    int daysToSimulate { 10 };
     for(int x = 0; x < daysToSimulate; x++) {
         Earth.simulate(x);
         cout << "Finished day: " << x << endl;
