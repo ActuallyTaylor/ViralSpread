@@ -22,13 +22,23 @@ int rollingVirusID { 0 };
  * World Constants
  */
 // The number of daily social interactions. Based on resarch from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6113687/
-int numberOfInteractionsPerTrip = 3;
+const int numberOfInteractionsPerTrip = 3;
 // The average number of times somebody travels. Data calculated on findings. https://www.bts.gov/archive/publications/highlights_of_the_2001_national_household_travel_survey/section_02
 // & https://www.researchgate.net/publication/279853330_Extended_Range_Electric_Vehicle_Driving_and_Charging_Behavior_Observed_Early_in_the_EV_Project
 // Trips are defined as moving from one address to another. This means, they usually come in multiples of 2.
-int numberOfDailyTrips = 4;
-int averageTripDistanceMiles = 8;
-double roundTripChance = 0.6;
+const int numberOfDailyTrips = 4;
+const int averageTripDistanceMiles = 8;
+const double roundTripChance = 0.6;
+
+// Values representing percentages across the simulation
+const double healthLevelOne = 0.1;
+const double healthLevelTwo = 0.4;
+const double healthLevelThree = 0.5;
+const double healthLevelFour = 0.8;
+const double healthLevelFive = 1.0;
+const double latentHealthDecrease = -0.005;
+const double infectiousHealthDecrease = -0.05;
+const double recoveringHealthIncrease = 0.045;
 
 // https://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 // These functions will randomly select a random numbers.
@@ -102,18 +112,19 @@ enum InfectionMethod {
 
 enum DiseaseStage {
     Susceptible, // Can become infected
-    Infected, // Infected, but unable to infect others
+    Latent, // Infected, but unable to infect others
     Infectious, // Able to infect others
     Recovered, // Immune to the disease
     Immune // A temporary immunity, comes from birth, immunity decreases after birth
 };
 
+// https://www.microcovid.org/
 struct Virus {
     string name;
     int id;
     vector<InfectionMethod> infectionMethods { };
 
-    double infectionRate { 0.025 }; // A percentage out of 100
+    double infectionRate { 0.14 }; // A percentage out of 100
     int latencyPeriod { 3 }; // The period at which it takes to cross from infected -> infectious
     int infectionPeriod { 14 }; // The length of time that a person is infected for
     int recoveryPeriod { 4 }; // The length of the recovery period
@@ -143,7 +154,12 @@ struct Person {
 
     int tripsToday { 0 };
     int tripsCounter { 0 };
+
+    // Virus Data
     optional<Virus> infectiousVirus;
+    int personalLatencyPeriod { 0 };
+    int personalInfectionPeriod { 0 };
+    int personalRecoveryPeriod { 0 };
 
     map<int, double> strainResistance { }; // Virus ID | Resistance percent 0-1
 
@@ -155,7 +171,8 @@ struct Person {
     explicit Person(int id, int parentChunkIndex) {
         this->id = id;
         this->parentChunkIndex = parentChunkIndex;
-        currentHealthCondition = randomWeightedDouble({0.1, 0.15, 0.3, 0.3, 0.1}, {0.1, 0.4, 0.5, 0.8, 1.0});
+
+        currentHealthCondition = randomWeightedDouble({0.1, 0.15, 0.3, 0.3, 0.1}, {healthLevelOne, healthLevelTwo, healthLevelThree, healthLevelFour, healthLevelFive});
     }
 
     inline bool operator == (const Person& rhs) const {
@@ -165,41 +182,114 @@ struct Person {
     // Advances the infection through the stages fo the SIERS model
     void advanceInfection() {
         if (infectiousVirus.has_value()) {
-            if(stageOfInfection == Infected) {
-                if(infectiousVirus.value().latencyPeriod < stageCounter) {
+            if(stageOfInfection == Latent) {
+                if(personalLatencyPeriod < stageCounter) { // We have crossed the barrier of latency
                     stageOfInfection = Infectious;
                     stageCounter = 0;
+                } else { // While latent, slightly decrease health
+                    currentHealthCondition += latentHealthDecrease;
                 }
             } else if (stageOfInfection == Infectious) {
-                if(infectiousVirus.value().infectionPeriod < stageCounter) {
+                if(personalInfectionPeriod < stageCounter) { // We have crossed the infectious period, begin recovering
                     stageOfInfection = Recovered;
                     stageCounter = 0;
+                } else { // Decrease health as you are infectious.
+                    currentHealthCondition += infectiousHealthDecrease;
                 }
             } else if(stageOfInfection == Recovered) {
-                if(infectiousVirus.value().recoveryPeriod < stageCounter) {
+                if(personalRecoveryPeriod < stageCounter) { // We have finished recovering, start being susceptible again
                     stageOfInfection = Susceptible;
                     stageCounter = 0;
                     infectiousVirus.reset();
+                } else {
+                    currentHealthCondition += recoveringHealthIncrease; // We are healing, increase the health condition
                 }
+            }
+            if(currentHealthCondition > 1) {
+                currentHealthCondition = 1;
+            } else if(currentHealthCondition < 0) {
+                currentHealthCondition = 0;
             }
             stageCounter ++;
         }
     }
 
-    // Calcualtes the chance of infection. Based on health condition and rate of transfer of the virus. Along with the type of interaction.
-    double chanceOfInfection() { // Need to actually implement, 0 - 1.0
-        double chanceToInfect = currentHealthCondition / 20;
-        return chanceToInfect;
+    // Calculates the chance of infection. Based on health condition and rate of transfer of the virus. Along with the type of interaction.
+    bool chanceOfInfection(double virusInfectionRate) const { // Need to actually implement, 0 - 1.0
+        double infectionRate = virusInfectionRate;
+        if(currentHealthCondition <= healthLevelOne) {
+            // Worst Condition
+//            cout << "Worst Health" << endl;
+            infectionRate = virusInfectionRate * randomDouble(2.5, 3.2);
+        } else if (currentHealthCondition <= healthLevelTwo) {
+            // Moderate Condition
+//            cout << "Moderate Health" << endl;
+            infectionRate = virusInfectionRate * randomDouble(1.8, 2.3);
+        } else if (currentHealthCondition <= healthLevelThree) {
+            // Normal Condition
+//            cout << "Normal Health" << endl;
+            infectionRate = virusInfectionRate * randomDouble(0.9, 1.1);
+        } else if (currentHealthCondition <= healthLevelFour) {
+            // Good Condition
+//            cout << "Good Health" << endl;
+            infectionRate = virusInfectionRate * randomDouble(0.75, 0.85);
+        } else {
+            // Perfect Condition
+//            cout << "Perfect Health" << endl;
+            infectionRate = virusInfectionRate * randomDouble(0.45, 0.55);
+        }
+
+        return randomDouble(0, 1) <= infectionRate;
     }
 
-    bool infect(Virus virus, bool override = false) {
-        bool canInfect = chanceOfInfection() <= virus.infectionRate;
-        if(stageOfInfection == Recovered || stageOfInfection == Infectious || stageOfInfection == Infected) {
+    bool infect(const Virus& virus, bool override = false) {
+        bool canInfect = chanceOfInfection(virus.infectionRate);
+        if(stageOfInfection == Recovered || stageOfInfection == Infectious || stageOfInfection == Latent) {
             canInfect = false;
         }
         if (canInfect || override) {
             infectiousVirus = virus;
-            stageOfInfection = Infected;
+            stageOfInfection = Latent;
+
+            if(currentHealthCondition <= healthLevelOne) {
+                // Worst Condition
+                // Decrease latency period because person's health is low, so symptoms would show quickly
+                personalLatencyPeriod  = double(virus.latencyPeriod) * randomDouble(0.5, 0.9);
+                // Increase infection period because person's health is low, so symptoms would last longer
+                personalInfectionPeriod = double(virus.infectionPeriod) * randomDouble(1.5, 2);
+                // Decrease the recovery period because person's health is low, so it will take longer to recover and antibodies will not last as long.
+                personalRecoveryPeriod = double(virus.infectionPeriod) * randomDouble(0.5, 0.9);
+            } else if (currentHealthCondition <= healthLevelTwo) {
+                // Moderate Condition
+                // Decrease latency period because person's health is low, so symptoms would show quickly
+                personalLatencyPeriod  = double(virus.latencyPeriod) * randomDouble(0.6, 1);
+                // Increase infection period because person's health is low so symptoms would last longer
+                personalInfectionPeriod = double(virus.infectionPeriod) * randomDouble(1.4, 1.9);
+                // Decrease the recovery period because person's health is low, so it will take longer to recover and antibodies will not last as long.
+                personalRecoveryPeriod = double(virus.infectionPeriod) * randomDouble(0.6, 1);
+            } else if (currentHealthCondition <= healthLevelThree) {
+                // Normal Condition
+                // Only slight variations because we want this person to have fairly normal health
+                personalLatencyPeriod  = double(virus.latencyPeriod) * randomDouble(0.9, 1.1);
+                personalInfectionPeriod = double(virus.infectionPeriod) * randomDouble(1.1, 1.3);
+                personalRecoveryPeriod = double(virus.infectionPeriod) * randomDouble(0.9, 1.1);
+            } else if (currentHealthCondition <= healthLevelFour) {
+                // Good Condition
+                // Increase latency period because health is better, and viruses will be fought better
+                personalLatencyPeriod  = double(virus.latencyPeriod) * randomDouble(1.1, 1.4);
+                // Decrease infection period because we have good health
+                personalInfectionPeriod = double(virus.infectionPeriod) * randomDouble(0.6, 1);
+                // Increase recovery period because we have good health and antibodies should stay for a while
+                personalRecoveryPeriod = double(virus.infectionPeriod) * randomDouble(1.1, 1.4);
+            } else {
+                // Perfect Condition
+                // Increase latency period because health is better, and viruses will be fought better
+                personalLatencyPeriod  = double(virus.latencyPeriod) * randomDouble(1.3, 1.6);
+                // Decrease infection period because we have good health
+                personalInfectionPeriod = double(virus.infectionPeriod) * randomDouble(0.3, 0.7);
+                // Increase recovery period because we have good health and antibodies should stay for a while
+                personalRecoveryPeriod = double(virus.infectionPeriod) * randomDouble(1.3, 1.6);
+            }
         }
         return canInfect;
     }
@@ -325,13 +415,16 @@ struct City {
         int y { 0 };
 
         // Create a chunk for every needed chunk.
+        #pragma omp parallel for
         for(int index = 0; index < numberOfChunks; index++) {
+            cout << "Creating Chunk " << index << endl;
             for(int pIndex = 0; pIndex < roundedPopulationDensity; pIndex++) {
                 Person tempPerson = Person(rollingPersonID, index);
                 people.push_back(tempPerson);
                 rollingPersonID ++;
             }
             cityChunks.emplace_back(index, x, y);
+            cout << "Finished Creating People Chunk " << index << endl;
 
             // Make each chunk aware of its neighbors
             // Check to see if we are on the edge of the square
@@ -433,23 +526,31 @@ struct World {
     }
 
     void simulate(int dayNumb) {
+        cout << "Begin Simulating Day " << dayNumb << endl;
         for(City& city: cities) {
             // Loop over all the possible trip numbers
             int tripCount = 9;
+
+            cout << "Start Advance Infections" << endl;
+            #pragma omp parallel for
             for (auto personIterator = begin (city.people); personIterator != end (city.people); ++personIterator) {
                 (*personIterator).advanceInfection();
             }
+            cout << "End Advance Infections" << endl;
 
+            cout << "Start Trip Simulation" << endl;
             string csvString = "";
             for(int trip = 0; trip < tripCount; trip++) {
                 // Simulate disease spread in parallel threads.
+                cout << "Start Infection Simulation for trip " << trip << endl;
                 #pragma omp parallel for
                 for(auto chunkIterator = begin (city.cityChunks); chunkIterator != end (city.cityChunks); ++chunkIterator) {
                     int numbSusceptible = 0;
-                    int numbInfected = 0;
+                    int numbLatent = 0;
                     int numbInfectious = 0;
                     int numbRecovered = 0;
                     int numbImmune = 0;
+                    double healthSum = 0;
 
                     for(auto personIterator = begin (chunkIterator->people); personIterator != end (chunkIterator->people); ++personIterator) {
                         int numberOfInteractions  =  numberOfInteractionsPerTrip * (*personIterator)->tripsToday;
@@ -477,8 +578,8 @@ struct World {
                         DiseaseStage stage = (*personIterator)->stageOfInfection;
                         if(stage == Susceptible) {
                             numbSusceptible ++;
-                        } else if (stage == Infected) {
-                            numbInfected ++;
+                        } else if (stage == Latent) {
+                            numbLatent ++;
                         } else if (stage == Infectious) {
                             numbInfectious ++;
                         } else if (stage == Recovered) {
@@ -486,6 +587,7 @@ struct World {
                         } else if (stage == Immune) {
                             numbImmune ++;
                         }
+                        healthSum += (*personIterator)->currentHealthCondition;
                     }
 
                     // Clear people vector to allow for movement to happen, we only want to clear if we are about to move people
@@ -493,10 +595,15 @@ struct World {
                         chunkIterator->people.clear();
                     } else {
                         // + "," + to_string(trip)
-                        csvString += to_string(dayNumb) + "," +city.name + "," + to_string(city.people.size()) + "," + to_string(chunkIterator->id) + "," + to_string(chunkIterator->people.size()) + "," + to_string(numbSusceptible) + "," + to_string(numbInfected) + "," + to_string(numbInfectious) + "," + to_string(numbRecovered) + "," + to_string(numbImmune) + "\n";
+                        csvString += to_string(dayNumb) + "," +city.name + "," + to_string(city.people.size()) + ","
+                                + to_string(chunkIterator->id) + "," + to_string(chunkIterator->people.size()) + ","
+                                + to_string(numbSusceptible) + "," + to_string(numbLatent) + "," + to_string(numbInfectious)
+                                + "," + to_string(numbRecovered) + "," + to_string(numbImmune) + "," + to_string(healthSum / chunkIterator->people.size()) + "\n";
                     }
                 }
+                cout << "End Infection Simulation for trip " << trip << endl;
 
+                cout << "Start Movement Simulation for trip " << trip << endl;
                 // Move person to a new chunk
                 if (trip != tripCount - 1) {
                     for(auto personIterator = begin (city.people); personIterator != end (city.people); ++personIterator) {
@@ -552,12 +659,16 @@ struct World {
                         city.cityChunks[personIterator->parentChunkIndex].people.push_back(&(*personIterator));
                     }
                 }
+                cout << "End Movement Simulation for trip " << trip << endl;
             }
+            cout << "End Trip Simulation" << endl;
+
             ofstream dataCSV;
             dataCSV.open ("./Daily_Infection_Numbers.csv", ios_base::app);
             dataCSV << csvString;
             dataCSV.close();
         }
+        cout << "End Simulating Day " << dayNumb << endl;
     }
 };
 
@@ -566,17 +677,17 @@ int main() {
     World Earth = World();
 
     // Read in cities from data (Currently Just One City)
-    Earth.cities[0] = City("Philadelphia", 1000, 10, 10);
+    Earth.cities[0] = City("Philadelphia", 0, 11807, 142);
     Earth.viruses.emplace_back(Virus("Argo 1", {Touch, Saliva, Coughing, Sneezing, SexualContact, Contamination, Insects}));
     Earth.infect(Earth.cities[0], Earth.viruses[0]);
 
     ofstream dataCSV;
     dataCSV.open ("./Daily_Infection_Numbers.csv");
     //Trip,
-    dataCSV << "Date,City,City Population,Chunk Number,Chunk Population,Susceptible,Infected,Infectious,Recovered,Immune\n";
+    dataCSV << "Date,City,City Population,Chunk Number,Chunk Population,Susceptible,Latent,Infectious,Recovered,Immune,Average Health\n";
     dataCSV.close();
 
-    int daysToSimulate { 365 };
+    int daysToSimulate { 100 };
     for(int x = 0; x < daysToSimulate; x++) {
         Earth.simulate(x);
         cout << "Finished day: " << x << endl;
