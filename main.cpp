@@ -42,6 +42,8 @@ const double infectiousHealthDecrease = -0.05;
 const double recoveringHealthIncrease = 0.045;
 const double startingInfectionPercentage = 0.1;
 
+bool halt = false;
+
 // https://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 // These functions will randomly select a random numbers.
 double randomDouble(double min, double max) {
@@ -97,11 +99,13 @@ BidiIter random_unique(BidiIter begin, BidiIter end, size_t num_random) {
     return begin;
 }
 
+// Unused in the final simulation. Recommended to implement in future versions
 enum VirusType {
     Lysogenic, // Long-lasting, can stay dormant for a while
     Lytic // Short, usually takes effect right away
 };
 
+// Unused in the final simulation. Recommended to implement in future versions
 enum InfectionMethod {
     Touch,
     Saliva,
@@ -217,27 +221,22 @@ struct Person {
     }
 
     // Calculates the chance of infection. Based on health condition and rate of transfer of the virus. Along with the type of interaction.
-    bool chanceOfInfection(double virusInfectionRate) const { // Need to actually implement, 0 - 1.0
+    bool canBeInfected(double virusInfectionRate) const { // Need to actually implement, 0 - 1.0
         double infectionRate = virusInfectionRate;
         if(currentHealthCondition <= healthLevelOne) {
             // Worst Condition
-//            cout << "Worst Health" << endl;
             infectionRate = virusInfectionRate * randomDouble(2.5, 3.2);
         } else if (currentHealthCondition <= healthLevelTwo) {
             // Moderate Condition
-//            cout << "Moderate Health" << endl;
             infectionRate = virusInfectionRate * randomDouble(1.8, 2.3);
         } else if (currentHealthCondition <= healthLevelThree) {
             // Normal Condition
-//            cout << "Normal Health" << endl;
             infectionRate = virusInfectionRate * randomDouble(0.9, 1.1);
         } else if (currentHealthCondition <= healthLevelFour) {
             // Good Condition
-//            cout << "Good Health" << endl;
             infectionRate = virusInfectionRate * randomDouble(0.75, 0.85);
         } else {
             // Perfect Condition
-//            cout << "Perfect Health" << endl;
             infectionRate = virusInfectionRate * randomDouble(0.45, 0.55);
         }
 
@@ -245,7 +244,7 @@ struct Person {
     }
 
     bool infect(const Virus& virus, bool override = false) {
-        bool canInfect = chanceOfInfection(virus.infectionRate);
+        bool canInfect = canBeInfected(virus.infectionRate);
         if(stageOfInfection == Recovered || stageOfInfection == Infectious || stageOfInfection == Latent) {
             canInfect = false;
         }
@@ -430,18 +429,15 @@ struct City {
             // Make each chunk aware of its neighbors
             // Check to see if we are on the edge of the square
             if(x == 0) { // Left Edge
-                if(index - arraySideLength < 0) {
-//                    cout << "Chunk Index: " << index << " Top Left Edge" << endl;
+                if(index - arraySideLength < 0) { // Top Left Edge
                     setIndex(index, 4, index + 1, arraySize);
                     setIndex(index, 6, index + arraySideLength, arraySize);
                     setIndex(index, 7, (index + arraySideLength) + 1, arraySize);
-                } else if (index + arraySideLength > numberOfChunks - 1) {
-//                    cout << "Chunk Index: " << index << " Bottom Left Edge" << endl;
+                } else if (index + arraySideLength > numberOfChunks - 1) { // Bottom Left Edge
                     setIndex(index, 1, index - arraySideLength, arraySize);
                     setIndex(index, 2, (index - arraySideLength) + 1, arraySize);
                     setIndex(index, 4, index + 1, arraySize);
-                } else {
-//                    cout << "Chunk Index: " << index << " Left Edge" << endl;
+                } else { // Left Edge
                     setIndex(index, 1, index - arraySideLength, arraySize);
                     setIndex(index, 2, (index - arraySideLength) + 1, arraySize);
                     setIndex(index, 4, index + 1, arraySize);
@@ -449,18 +445,15 @@ struct City {
                     setIndex(index, 7, (index + arraySideLength) + 1, arraySize);
                 }
             } else if (x == arraySideLength - 1) { // Right Edge
-                if(index - arraySideLength < 0) {
-//                    cout << "Chunk Index: " << index << " Top Right Edge" << endl;
+                if(index - arraySideLength < 0) { // Top Right Edge
                     setIndex(index, 3, index - 1, arraySize);
                     setIndex(index, 5, (index + arraySideLength) - 1, arraySize);
                     setIndex(index, 6, index + arraySideLength, arraySize);
-                } else if (index + arraySideLength > arraySize) {
-//                    cout << "Chunk Index: " << index << " Bottom Right Edge" << endl;
+                } else if (index + arraySideLength > arraySize) { // Bottom Right Edge
                     setIndex(index, 0, (index - arraySideLength) - 1, arraySize);
                     setIndex(index, 1, index - arraySideLength, arraySize);
                     setIndex(index, 3, index - 1, arraySize);
-                } else {
-//                    cout << "Chunk Index: " << index << " Right Edge" << endl;
+                } else { // Right Edge
                     setIndex(index, 0, (index - arraySideLength) - 1, arraySize);
                     setIndex(index, 1, index - arraySideLength, arraySize);
                     setIndex(index, 3, index - 1, arraySize);
@@ -468,22 +461,19 @@ struct City {
                     setIndex(index, 6, index + arraySideLength, arraySize);
                 }
             } else { // No Edge
-                if(index - arraySideLength < 0) {
-//                    cout << "Chunk Index: " << index << " Top Edge" << endl;
+                if(index - arraySideLength < 0) { // Top Edge
                     setIndex(index, 3, index - 1, arraySize);
                     setIndex(index, 4, index + 1, arraySize);
                     setIndex(index, 5, (index + arraySideLength) - 1, arraySize);
                     setIndex(index, 6, index + arraySideLength, arraySize);
                     setIndex(index, 7, (index + arraySideLength) + 1, arraySize);
-                } else if (index + arraySideLength > arraySize) {
-//                    cout << "Chunk Index: " << index << " Bottom Edge" << endl;
+                } else if (index + arraySideLength > arraySize) { // Bottom Edge
                     setIndex(index, 0, (index - arraySideLength) - 1, arraySize);
                     setIndex(index, 1, index - arraySideLength, arraySize);
                     setIndex(index, 2, (index - arraySideLength) + 1, arraySize);
                     setIndex(index, 3, index - 1, arraySize);
                     setIndex(index, 4, index + 1, arraySize);
-                } else {
-//                    cout << "Chunk Index: " << index << " No Edge" << endl;
+                } else { // No Edge
                     setIndex(index, 0, (index - arraySideLength) - 1, arraySize);
                     setIndex(index, 1, index - arraySideLength, arraySize);
                     setIndex(index, 2, (index - arraySideLength) + 1, arraySize);
@@ -499,11 +489,9 @@ struct City {
             cityChunks[index].setPossibleIndicies();
 
             if (x >= arraySideLength - 1) {
-//                cout << index << endl;
                 x = 0;
                 y ++;
             } else {
-//                cout << index;
                 x ++;
             }
         }
@@ -684,7 +672,7 @@ int main() {
     World Earth = World();
 
     // Read in cities from data (Currently Just One City)
-    Earth.cities[0] = City("Philadelphia",  100, 100);
+    Earth.cities[0] = City("Philadelphia",  10, 10);
     Earth.viruses.emplace_back(Virus("Argo 1", {Touch, Saliva, Coughing, Sneezing, SexualContact, Contamination, Insects}));
     Earth.infect(Earth.cities[0], Earth.viruses[0]);
 
@@ -694,11 +682,14 @@ int main() {
     dataCSV << "Date,City,City Population,Chunk Number,Chunk Population,Susceptible,Latent,Infectious,Recovered,Immune,Average Health\n";
     dataCSV.close();
 
-    int daysToSimulate { 10 };
+    int daysToSimulate { 100 };
     for(int x = 0; x < daysToSimulate; x++) {
-        Earth.simulate(x);
-        cout << "Finished day: " << x << endl;
+        if (!halt) {
+            Earth.simulate(x);
+            cout << "Finished day: " << x << endl;
+        }
     }
+    cout << "🥳 Finished Simulation 🥳" << endl;
 
     return 0;
 };
