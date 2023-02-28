@@ -1,4 +1,4 @@
-# TESTING THE ACCURACY OF A COMPUTER SIMULATION OF A VIRAL SPREAD
+# Testing The Accuracy Of A Computer Simulation Of A Viral Spread
 ## A resarch paper submitted to the Owen J Roberts High School Science Department
 This paper was wirtten for my Biotechnology class in High School. It is focused on the idea of simulating viral spread throughout a population. 
 
